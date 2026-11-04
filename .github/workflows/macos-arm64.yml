@@ -28,7 +28,10 @@ concurrency:
 jobs:
   build:
     name: Build arm64 CanMV IDE
-    runs-on: macos-15
+    # macos-15 hosted runners were not acquired on 2026-11-04
+    # ("not acquired by Runner of type hosted even after multiple attempts").
+    # macos-26 is the current Apple Silicon image.
+    runs-on: macos-26
     timeout-minutes: 120
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
