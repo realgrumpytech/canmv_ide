@@ -1,5 +1,11 @@
 # Native Apple Silicon build of CanMV IDE (K210 / `can` branch).
 #
+# ffplay under Contents/Resources/ffmpeg/mac stays the upstream x86_64
+# binary when install_name_tool cannot rewrite Homebrew's libavfilter.
+# It is only used to play a saved recording. ffmpeg itself is replaced
+# with a static arm64 build. K210 connect, flash, and the live framebuffer
+# do not use either tool.
+#
 # The historical macOS release was Intel-only (`CONFIG+=x86_64` in make.py,
 # Qt from ~/Qt). This workflow installs Homebrew's arm64 Qt 5.15, builds
 # with the stock qmake/macdeployqt/dmg targets, ad-hoc signs the .app, and
@@ -91,6 +97,16 @@ jobs:
 
       - name: Smoke test linkage and launch
         run: bash ci/smoke-macos-app.sh "build/bin/CanMV IDE.app"
+
+      - name: K210 ISP handshake on a pseudo-terminal
+        run: |
+          set -eux
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          mkdir -p build/k210-pty-test
+          cd build/k210-pty-test
+          qmake "$GITHUB_WORKSPACE/ci/k210-pty-test/k210-pty-test.pro"
+          make -j"$(sysctl -n hw.ncpu)"
+          ./k210-pty-test
 
       - name: Upload dmg and architecture report
         if: always()
