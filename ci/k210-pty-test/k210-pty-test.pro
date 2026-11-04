@@ -15,6 +15,8 @@ HEADERS += \
     $$PWD/../../qt-creator/src/plugins/openmv/k210_burn/download/k210burnRam.h \
     $$PWD/../../qt-creator/src/plugins/openmv/k210_burn/download/util.h
 
+unix:!macx: LIBS += -lutil
+
 SOURCES += \
     main.cpp \
     $$PWD/../../qt-creator/src/plugins/openmv/openmvpluginserialport.cpp \

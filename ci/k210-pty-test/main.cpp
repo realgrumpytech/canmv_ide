@@ -21,13 +21,14 @@
 #include <iostream>
 
 #include <fcntl.h>
+#include <termios.h>
 #include <unistd.h>
 
-#if defined(Q_OS_MAC)
-#include <util.h>
-#else
-#include <pty.h>
-#endif
+// k210_burn/download/util.h is on the include path, so <util.h> would pick
+// that up instead of the system header that declares openpty.
+struct winsize;
+extern "C" int openpty(int *amaster, int *aslave, char *name,
+                       struct termios *termp, struct winsize *winp);
 
 #include "k210burnRam.h"
 
