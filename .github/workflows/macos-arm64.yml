@@ -77,6 +77,10 @@ jobs:
         run: |
           set -eux
           export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          # The qt-creator submodule is patched and its ffmpeg binaries are
+          # replaced in the worktree. Ignore that when naming the dmg.
+          git config submodule.qt-creator.ignore all
+          git config diff.ignoreSubmodules all
           python3 make.py
           ls -lh build/*.dmg
           file "build/bin/CanMV IDE.app/Contents/MacOS/CanMV IDE"

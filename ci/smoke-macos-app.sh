@@ -30,17 +30,28 @@ echo "== main executable linkage =="
 otool -L "$exe"
 
 echo
-echo "== unresolved absolute dependencies (app, frameworks, plugins) =="
-missing=0
+echo "== unresolved dependencies (app, frameworks, plugins) =="
+: > "$log.deps"
 find "$app/Contents/MacOS" "$app/Contents/Frameworks" "$app/Contents/PlugIns" -type f -print 2>/dev/null | while IFS= read -r f; do
     kind=$(file -b "$f" || true)
     case "$kind" in
         Mach-O*) ;;
         *) continue ;;
     esac
+    selfid=$(otool -D "$f" 2>/dev/null | awk 'NR==2 {print $1}' || true)
     otool -L "$f" | awk 'NR>1 {print $1}' | while IFS= read -r dep; do
+        if [ -n "${selfid:-}" ] && [ "$dep" = "$selfid" ]; then
+            continue
+        fi
+        base=$(basename "$dep")
         case "$dep" in
-            /usr/lib/*|/System/*|@rpath/*|@loader_path/*|@executable_path/*)
+            /usr/lib/*|/System/*)
+                ;;
+            @rpath/*|@loader_path/*|@executable_path/*)
+                if ! find "$app" -name "$base" \( -type f -o -type l \) | grep -q .; then
+                    echo "MISSING $dep"
+                    echo "  from $f"
+                fi
                 ;;
             *)
                 echo "ABSOLUTE $dep"
@@ -50,8 +61,9 @@ find "$app/Contents/MacOS" "$app/Contents/Frameworks" "$app/Contents/PlugIns" -t
     done
 done | tee "$log.deps" || true
 
+missing=0
 if [ -s "$log.deps" ]; then
-    echo "FAIL: Mach-O files still link absolute non-system libraries."
+    echo "FAIL: a bundled Mach-O is missing a non-system library."
     missing=1
 fi
 

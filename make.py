@@ -296,8 +296,15 @@ def make():
         app_bundle = os.path.join(builddir, "bin", "CanMV IDE.app")
         identity = os.environ.get("SIGNING_IDENTITY", "")
         notarize = os.environ.get("NOTARIZE", "") == "1"
+        # macdeployqt leaves some Homebrew dylibs (brotli, and similar)
+        # unloaded. Copy them into the bundle before signing.
+        fix_deps = os.path.join(__folder__, "ci", "fix-app-deps.sh")
+        quoted_app = "'" + app_bundle.replace("'", "'\\''") + "'"
+        if os.path.isfile(fix_deps):
+            if os.system("bash " + "'" + fix_deps.replace("'", "'\\''") + "' " + quoted_app):
+                sys.exit("Bundled library fix failed...")
         # Quarantine on downloaded helper binaries (ffmpeg) makes codesign fail.
-        os.system("xattr -cr " + "'" + app_bundle.replace("'", "'\\''") + "'")
+        os.system("xattr -cr " + quoted_app)
         if identity and identity != "-":
             flags = os.environ.get("SIGNING_FLAGS", "--force --options=runtime --timestamp")
             if os.system("cd " + builddir +
