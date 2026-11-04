@@ -1,0 +1,49 @@
+diff --git a/src/app/main.cpp b/src/app/main.cpp
+index 202d0520..9b0c132e 100644
+--- a/src/app/main.cpp
++++ b/src/app/main.cpp
+@@ -34,6 +34,11 @@
+ #include <utils/fileutils.h>
+ #include <utils/hostosinfo.h>
+ 
++#ifdef Q_OS_MAC
++#include <sys/resource.h>
++#include <sys/syslimits.h>
++#endif
++
+ #include <QDebug>
+ #include <QDir>
+ #include <QFileInfo>
+diff --git a/src/plugins/coreplugin/locator/locator.pri b/src/plugins/coreplugin/locator/locator.pri
+index e80765bf..9f1086a2 100644
+--- a/src/plugins/coreplugin/locator/locator.pri
++++ b/src/plugins/coreplugin/locator/locator.pri
+@@ -47,4 +47,7 @@ equals(TEST, 1) {
+ osx {
+     HEADERS += $$PWD/spotlightlocatorfilter.h
+     OBJECTIVE_SOURCES += $$PWD/spotlightlocatorfilter.mm
++    # kMDQueryUpdateAddedItems and the metadata-query constants live in
++    # CoreServices. Modern ld does not allow undefined symbols in bundles.
++    LIBS += -framework CoreServices
+ }
+diff --git a/src/plugins/coreplugin/progressmanager/progressmanager_mac.mm b/src/plugins/coreplugin/progressmanager/progressmanager_mac.mm
+index 0541a844..87b78519 100644
+--- a/src/plugins/coreplugin/progressmanager/progressmanager_mac.mm
++++ b/src/plugins/coreplugin/progressmanager/progressmanager_mac.mm
+@@ -37,7 +37,6 @@ void Core::Internal::ProgressManagerPrivate::cleanup()
+ #import <AppKit/NSDockTile.h>
+ #import <AppKit/NSApplication.h>
+ #import <AppKit/NSImageView.h>
+-#import <AppKit/NSCIImageRep.h>
+ #import <AppKit/NSBezierPath.h>
+ #import <AppKit/NSColor.h>
+ #import <Foundation/NSString.h>
+@@ -92,7 +91,7 @@ static ApplicationProgressView *sharedProgressView = nil;
+     NSRect boundary = [self bounds];
+     [[NSApp applicationIconImage] drawInRect:boundary
+                                      fromRect:NSZeroRect
+-                                    operation:NSCompositeCopy
++                                    operation:NSCompositingOperationCopy
+                                      fraction:1.0];
+     NSRect progressBoundary = boundary;
+     progressBoundary.size.height *= 0.13;

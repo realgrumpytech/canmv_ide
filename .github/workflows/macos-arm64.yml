@@ -1,0 +1,99 @@
+# Native Apple Silicon build of CanMV IDE (K210 / `can` branch).
+#
+# The historical macOS release was Intel-only (`CONFIG+=x86_64` in make.py,
+# Qt from ~/Qt). This workflow installs Homebrew's arm64 Qt 5.15, builds
+# with the stock qmake/macdeployqt/dmg targets, ad-hoc signs the .app, and
+# uploads the .dmg. No Apple Developer ID is required. On first launch,
+# clear quarantine (right-click the app > Open, or
+# `xattr -dr com.apple.quarantine` on the .dmg / .app).
+
+name: macos-arm64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/macos-arm64-canmv-291c
+
+concurrency:
+  group: macos-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build arm64 CanMV IDE
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      # Appended by qmake/make when the dmg target runs.
+      INSTALL_POSTFIX: -arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Confirm Apple Silicon runner
+        run: |
+          set -eux
+          uname -a
+          sw_vers
+          xcodebuild -version
+          test "$(uname -m)" = "arm64"
+
+      - name: Checkout qt-creator and examples
+        run: |
+          set -eux
+          git submodule update --init qt-creator
+          git -C qt-creator submodule update --init share/qtcreator/examples
+
+      - name: Apply arm64 source fixes
+        run: |
+          set -eux
+          git -C qt-creator apply --check "$GITHUB_WORKSPACE/ci/qt-creator-arm64.patch"
+          git -C qt-creator apply "$GITHUB_WORKSPACE/ci/qt-creator-arm64.patch"
+
+      - name: Install Qt 5.15 and ffmpeg
+        run: |
+          set -eux
+          brew install qt@5 ffmpeg
+          qtbin="$(brew --prefix qt@5)/bin"
+          echo "$qtbin" >> "$GITHUB_PATH"
+          echo "QT_VERSION=$("$qtbin/qmake" -query QT_VERSION)" >> "$GITHUB_ENV"
+          "$qtbin/qmake" -query
+          echo "qmake file:"; file "$qtbin/qmake"
+          core="$("$(brew --prefix qt@5)/bin/qmake" -query QT_INSTALL_LIBS)/QtCore.framework/QtCore"
+          echo "QtCore:"; file "$core"
+          lipo -archs "$core"
+          lipo -archs "$core" | grep -q arm64
+
+      - name: Replace Intel ffmpeg helpers with arm64 builds
+        run: bash ci/prepare-macos-tools.sh
+
+      - name: Build, deploy, ad-hoc sign, and package
+        run: |
+          set -eux
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          python3 make.py
+          ls -lh build/*.dmg
+          file "build/bin/CanMV IDE.app/Contents/MacOS/CanMV IDE"
+          lipo -archs "build/bin/CanMV IDE.app/Contents/MacOS/CanMV IDE"
+
+      - name: List Mach-O architectures
+        run: bash ci/audit-macho.sh "build/bin/CanMV IDE.app" | tee build/macho-archs.txt
+
+      - name: Smoke test linkage and launch
+        run: bash ci/smoke-macos-app.sh "build/bin/CanMV IDE.app"
+
+      - name: Upload dmg and architecture report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canmv-ide-macos-arm64
+          path: |
+            build/*.dmg
+            build/macho-archs.txt
+          if-no-files-found: warn
