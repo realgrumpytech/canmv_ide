@@ -284,23 +284,55 @@ def make():
         installer = glob.glob(os.path.join(builddir, "canmv-ide-*.exe"))[0]
 
     elif sys.platform.startswith('darwin'):
+        # Do not pass CONFIG+=x86_64. That flag forced an Intel slice. qmake
+        # and clang target the machine they are running on, which is arm64 on
+        # Apple Silicon and x86_64 on Intel.
         if os.system("cd " + builddir +
-        " && qmake ../qt-creator/qtcreator.pro -r -spec macx-clang CONFIG+=x86_64 OMV_IDE_GIT_VERSION=\"" + git_version + "\"" + 
+        " && qmake ../qt-creator/qtcreator.pro -r -spec macx-clang OMV_IDE_GIT_VERSION=\"" + git_version + "\"" +
         " && make -j" + str(cpus) +
         " && make deployqt"):
             sys.exit("Make Failed...")
-        os.system("cd " + builddir + " && make codesign SIGNING_IDENTITY=Application SIGNING_FLAGS=\"--force --options=runtime --timestamp\"")
-        if os.system("cd " + builddir +
-        " && ditto -c -k -rsrc --sequesterRsrc --keepParent bin/CanMV\\ IDE.app CanMV\\ IDE.zip"
-        " && xcrun notarytool submit CanMV\\ IDE.zip --keychain-profile \"AC_PASSWORD\" --wait"
-        " && xcrun stapler staple bin/CanMV\\ IDE.app"):
-            sys.exit("Make Failed...")
+
+        app_bundle = os.path.join(builddir, "bin", "CanMV IDE.app")
+        identity = os.environ.get("SIGNING_IDENTITY", "")
+        notarize = os.environ.get("NOTARIZE", "") == "1"
+        # macdeployqt leaves some Homebrew dylibs (brotli, and similar)
+        # unloaded. Copy them into the bundle before signing.
+        fix_deps = os.path.join(__folder__, "ci", "fix-app-deps.sh")
+        quoted_app = "'" + app_bundle.replace("'", "'\\''") + "'"
+        if os.path.isfile(fix_deps):
+            if os.system("bash " + "'" + fix_deps.replace("'", "'\\''") + "' " + quoted_app):
+                sys.exit("Bundled library fix failed...")
+        # Quarantine on downloaded helper binaries (ffmpeg) makes codesign fail.
+        os.system("xattr -cr " + quoted_app)
+        if identity and identity != "-":
+            flags = os.environ.get("SIGNING_FLAGS", "--force --options=runtime --timestamp")
+            if os.system("cd " + builddir +
+            " && make codesign SIGNING_IDENTITY=\"" + identity + "\" SIGNING_FLAGS=\"" + flags + "\""):
+                sys.exit("Codesign Failed...")
+            if notarize:
+                if os.system("cd " + builddir +
+                " && ditto -c -k -rsrc --sequesterRsrc --keepParent bin/CanMV\\ IDE.app CanMV\\ IDE.zip"
+                " && xcrun notarytool submit CanMV\\ IDE.zip --keychain-profile \"AC_PASSWORD\" --wait"
+                " && xcrun stapler staple bin/CanMV\\ IDE.app"):
+                    sys.exit("Notarization Failed...")
+        else:
+            # Ad-hoc signature so the app can be launched on Apple Silicon
+            # without an Apple Developer ID. First launch still needs
+            # right-click > Open, or `xattr -dr com.apple.quarantine` on the
+            # downloaded .app / .dmg.
+            print("Ad-hoc codesign (set SIGNING_IDENTITY to use a Developer ID)")
+            if os.system("codesign --force --deep --sign - " +
+                         "'" + app_bundle.replace("'", "'\\''") + "'"):
+                sys.exit("Ad-hoc codesign failed...")
+
         if os.system("cd " + builddir + " && make dmg"):
             sys.exit("Make Failed...")
         installer = glob.glob(os.path.join(builddir, "canmv-ide-*.dmg"))[0]
-        if os.system("cd " + builddir + " && xcrun notarytool submit " + installer + " --keychain-profile \"AC_PASSWORD\" --wait"
-        " && xcrun stapler staple " + installer):
-            sys.exit("Make Failed...")
+        if notarize and identity and identity != "-":
+            if os.system("cd " + builddir + " && xcrun notarytool submit " + installer + " --keychain-profile \"AC_PASSWORD\" --wait"
+            " && xcrun stapler staple " + installer):
+                sys.exit("DMG notarization failed...")
 
     elif sys.platform.startswith('linux'):
         # Add Fonts...
