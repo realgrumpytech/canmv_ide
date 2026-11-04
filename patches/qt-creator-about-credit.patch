@@ -1,0 +1,17 @@
+diff --git a/src/plugins/openmv/openmvplugin.cpp b/src/plugins/openmv/openmvplugin.cpp
+index 2699ecc5..94119111 100644
+--- a/src/plugins/openmv/openmvplugin.cpp
++++ b/src/plugins/openmv/openmvplugin.cpp
+@@ -1659,7 +1659,11 @@ void OpenMVPlugin::extensionsInitialized()
+         "<p>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the <a href=\"https://github.com/openmv/qt-creator/raw/master/LICENSE.GPL3-EXCEPT\">GNU General Public License</a> for more details.</p>"
+         ).arg(QLatin1String(Core::Constants::CANMV_IDE_VERSION_LONG)).arg(QLatin1String(Core::Constants::CANMV_IDE_YEAR)).arg(QLatin1String(Core::Constants::CANMV_IDE_AUTHOR)).arg(QLatin1String(Core::Constants::IDE_GIT_VERSION)) + tr(
+         "<p><b>Credits</b></p>") + tr(
+-        "<p>OpenMV IDE English translation by Kwabena W. Agyeman.</p>"));
++        "<p>OpenMV IDE English translation by Kwabena W. Agyeman.</p>")
++        // Modified 4 November 2026 by RealgrumpyTech (github.com/realgrumpytech/canmv_ide).
++        // Added the Apple Silicon build credit in the next paragraph. GPL-3 section 5(a).
++        + tr(
++        "<p>Native Apple Silicon (arm64) macOS build by RealgrumpyTech, github.com/realgrumpytech/canmv_ide.</p>"));
+         //  + tr("<p><b>Partners</b></p>") + QStringLiteral("<p><a href=\"https://www.arduino.cc/\"><img source=\":/openmv/images/arduino-partnership.png\"></a></p>"));
+         // "<p><a href=\"https://edgeimpulse.com/\"><img source=\":/openmv/images/edge-impulse-partnership.png\"></a></p>"));
+     });

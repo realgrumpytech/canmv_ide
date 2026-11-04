@@ -62,6 +62,12 @@ jobs:
           git -C qt-creator apply --check "$GITHUB_WORKSPACE/ci/qt-creator-arm64.patch"
           git -C qt-creator apply "$GITHUB_WORKSPACE/ci/qt-creator-arm64.patch"
 
+      - name: Apply About-dialog credit
+        run: |
+          set -eux
+          git -C qt-creator apply --check "$GITHUB_WORKSPACE/patches/qt-creator-about-credit.patch"
+          git -C qt-creator apply "$GITHUB_WORKSPACE/patches/qt-creator-about-credit.patch"
+
       - name: Install Qt 5.15 and ffmpeg
         run: |
           set -eux

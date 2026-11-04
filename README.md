@@ -45,3 +45,7 @@ Instructions for running the installer silently
 https://stackoverflow.com/a/34032216
 
 Note that some modifications to the above solution may be needed.
+
+# Changes in this fork
+
+November 4, 2026. This fork (https://github.com/realgrumpytech/canmv_ide) adds a native Apple Silicon (arm64) macOS build of CanMV IDE 2.9.2 for the K210, built from the `can` branch via the macos-arm64 GitHub Actions workflow. It is modified from kendryte/canmv_ide (itself derived from OpenMV IDE / Qt Creator). Full source, including these changes, is in this public repository.
